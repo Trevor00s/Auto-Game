@@ -24,7 +24,7 @@ class handler(BaseHTTPRequestHandler):
 
             private_key = os.environ.get("OG_PRIVATE_KEY", "")
             if not private_key:
-                return self._json({"error": "OG_PRIVATE_KEY not set in environment variables"}, 500)
+                return self._json({"error": "OG_PRIVATE_KEY not set"}, 500)
 
             try:
                 import opengradient as og
@@ -46,7 +46,7 @@ class handler(BaseHTTPRequestHandler):
                                 f"Create a complete browser game: {prompt}\n\n"
                                 "IMPORTANT: Output ONLY raw HTML. "
                                 "Start EXACTLY with <!DOCTYPE html> — no markdown, "
-                                "no backticks, no explanation, nothing before <!DOCTYPE."
+                                "no backticks, no explanation."
                             )
                         }
                     ],
@@ -57,22 +57,26 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({"error": f"llm.chat() failed: {e}"}, 500)
 
+            # ✅ FIX: TextGenerationOutput.chat_output['content']
             html = ""
             try:
-                if hasattr(result, "choices") and result.choices:
+                if hasattr(result, "chat_output") and isinstance(result.chat_output, dict):
+                    html = result.chat_output.get("content", "")
+                elif hasattr(result, "choices") and result.choices:
                     html = result.choices[0].message.content
-                elif hasattr(result, "content"):
+                elif hasattr(result, "content") and isinstance(result.content, str):
                     html = result.content
                 elif isinstance(result, str):
                     html = result
                 else:
                     html = str(result)
             except Exception as e:
-                return self._json({"error": f"Failed to extract content: {e}"}, 500)
+                return self._json({"error": f"Content extraction failed: {e}"}, 500)
 
             if not html:
                 return self._json({"error": "Empty response from model"}, 500)
 
+            # Strip markdown fences if present
             html = re.sub(r"^```(?:html)?\s*", "", html.strip(), flags=re.IGNORECASE)
             html = re.sub(r"\s*```\s*$", "", html.strip())
             html = html.strip()

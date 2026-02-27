@@ -387,7 +387,7 @@
       OpenGradient · GPT-4o · Verifiable AI
     </div>
     <h1>Auto-Game<br>Generator</h1>
-    <p class="subtitle">kteb prompt → l'AI katgeneri game kamla f'browser</p>
+    <p class="subtitle">describe your game → AI generates it instantly in your browser</p>
   </header>
 
   <!-- Input Panel -->
@@ -404,18 +404,17 @@
           class="prompt-input"
           id="promptInput"
           type="text"
-          placeholder="describe le3ba dyalek..."
+          placeholder="describe your game..."
           autocomplete="off"
         />
         <button class="generate-btn" id="generateBtn" onclick="generateGame()">
           <span>⚡</span> Generate
         </button>
       </div>
-      <div class="examples-label">exemples rapides</div>
+      <div class="examples-label">quick examples</div>
       <div class="examples">
         <div class="example-chip" onclick="useExample(this)">🐍 snake game neon</div>
         <div class="example-chip" onclick="useExample(this)">🚀 space shooter asteroids</div>
-        <div class="example-chip" onclick="useExample(this)">🧩 quiz villes maroc</div>
         <div class="example-chip" onclick="useExample(this)">🏃 platformer infinite runner</div>
         <div class="example-chip" onclick="useExample(this)">🧱 brick breaker</div>
         <div class="example-chip" onclick="useExample(this)">🐦 flappy bird style</div>
@@ -566,7 +565,7 @@ async function generateGame() {
 
   } catch (err) {
     if (err.name === 'AbortError') {
-      log(`❌ Timeout — l'request da9at 55s. Vercel Plan dyalek kaydkhol?`, 'error');
+      log(`❌ Timeout — Request timed out after 55s. Check your Vercel plan limits.`, 'error');
     } else {
       log(`❌ Error: ${escHtml(err.message)}`, 'error');
     }

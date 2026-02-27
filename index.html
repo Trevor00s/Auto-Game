@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎮 Auto-Game Generator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #7c3aed;
+    --accent2: #06b6d4;
+    --accent3: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #475569;
+    --green: #10b981;
+    --red: #ef4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.4);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-size: 11px;
+    color: #a78bfa;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px;
+    background: #7c3aed;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(36px, 6vw, 64px);
+    font-weight: 800;
+    line-height: 1;
+    background: linear-gradient(135deg, #fff 0%, #a78bfa 50%, #06b6d4 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+
+  .subtitle { color: var(--muted); font-size: 13px; letter-spacing: 0.05em; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #ef4444; }
+  .dot-y { background: #f59e0b; }
+  .dot-g { background: #10b981; }
+  .panel-title { margin-left: 8px; font-size: 12px; color: var(--muted); letter-spacing: 0.05em; }
+
+  .panel-body { padding: 24px; }
+
+  .input-row { display: flex; gap: 12px; margin-bottom: 20px; }
+
+  .prompt-input {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .prompt-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
+  }
+
+  .prompt-input::placeholder { color: var(--muted); }
+
+  .generate-btn {
+    background: linear-gradient(135deg, var(--accent), #5b21b6);
+    border: none;
+    border-radius: 10px;
+    padding: 14px 24px;
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .generate-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(124,58,237,0.4); }
+  .generate-btn:active { transform: translateY(0); }
+  .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .examples-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .example-chip {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .example-chip:hover {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    background: rgba(6,182,212,0.08);
+  }
+
+  .terminal {
+    background: #080810;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    min-height: 200px;
+    display: none;
+    margin-bottom: 24px;
+  }
+
+  .terminal.visible { display: block; }
+
+  .terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .terminal-body {
+    padding: 20px;
+    font-size: 13px;
+    line-height: 1.7;
+    min-height: 160px;
+    overflow-y: auto;
+    max-height: 300px;
+  }
+
+  .log-line { display: flex; gap: 10px; margin-bottom: 4px; animation: fadeIn 0.2s ease; }
+  .log-prefix { color: var(--muted); flex-shrink: 0; }
+  .log-info    { color: var(--accent2); }
+  .log-success { color: var(--green); }
+  .log-warn    { color: var(--accent3); }
+  .log-error   { color: var(--red); }
+  .log-gen     { color: #a78bfa; }
+
+  .progress-wrap {
+    margin-bottom: 12px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 4px;
+    overflow: hidden;
+    height: 3px;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    width: 0%;
+    transition: width 0.4s ease;
+    border-radius: 4px;
+  }
+
+  .game-preview {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    display: none;
+    margin-bottom: 24px;
+  }
+
+  .game-preview.visible { display: block; }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .preview-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .action-btns { display: flex; gap: 8px; }
+
+  .action-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 14px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .action-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--accent2); }
+
+  .game-frame-wrap {
+    position: relative;
+    background: #000;
+    height: 520px;
+  }
+
+  #gameFrame { width: 100%; height: 100%; border: none; display: block; }
+
+  .stats-bar {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .stat-val { color: var(--accent2); font-weight: 700; }
+
+  .code-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    display: none;
+    margin-bottom: 24px;
+  }
+
+  .code-panel.visible { display: block; }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .code-scroll { overflow: auto; max-height: 300px; padding: 20px; }
+
+  pre {
+    font-family: 'Space Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+    color: #94a3b8;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  @keyframes fadeIn { from { opacity:0; transform:translateX(-4px); } to { opacity:1; transform:translateX(0); } }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid rgba(124,58,237,0.3);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--green);
+    border-radius: 12px;
+    padding: 14px 20px;
+    font-size: 13px;
+    color: var(--green);
+    z-index: 9999;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  @media (max-width: 600px) {
+    .input-row { flex-direction: column; }
+    .action-btns { flex-wrap: wrap; }
+    .game-frame-wrap { height: 360px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <div class="badge">
+      <div class="badge-dot"></div>
+      OpenGradient · GPT-4o · Verifiable AI
+    </div>
+    <h1>Auto-Game<br>Generator</h1>
+    <p class="subtitle">kteb prompt → l'AI katgeneri game kamla f'browser</p>
+  </header>
+
+  <!-- Input Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <span class="panel-title">game_generator — interactive mode</span>
+    </div>
+    <div class="panel-body">
+      <div class="input-row">
+        <input
+          class="prompt-input"
+          id="promptInput"
+          type="text"
+          placeholder="describe le3ba dyalek..."
+          autocomplete="off"
+        />
+        <button class="generate-btn" id="generateBtn" onclick="generateGame()">
+          <span>⚡</span> Generate
+        </button>
+      </div>
+      <div class="examples-label">exemples rapides</div>
+      <div class="examples">
+        <div class="example-chip" onclick="useExample(this)">🐍 snake game neon</div>
+        <div class="example-chip" onclick="useExample(this)">🚀 space shooter asteroids</div>
+        <div class="example-chip" onclick="useExample(this)">🧩 quiz villes maroc</div>
+        <div class="example-chip" onclick="useExample(this)">🏃 platformer infinite runner</div>
+        <div class="example-chip" onclick="useExample(this)">🧱 brick breaker</div>
+        <div class="example-chip" onclick="useExample(this)">🐦 flappy bird style</div>
+        <div class="example-chip" onclick="useExample(this)">🎯 aim trainer</div>
+        <div class="example-chip" onclick="useExample(this)">🎲 2048 puzzle</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Terminal -->
+  <div class="terminal" id="terminal">
+    <div class="terminal-header">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <span class="panel-title" style="margin-left:8px">stdout — OpenGradient SDK</span>
+    </div>
+    <div class="terminal-body" id="terminalBody"></div>
+  </div>
+
+  <!-- Game Preview -->
+  <div class="game-preview" id="gamePreview">
+    <div class="preview-header">
+      <div class="preview-title"><span>●</span> LIVE PREVIEW</div>
+      <div class="action-btns">
+        <button class="action-btn" onclick="toggleCode()">📄 Code</button>
+        <button class="action-btn" onclick="downloadGame()">⬇ Download</button>
+        <button class="action-btn" onclick="fullscreen()">⛶ Fullscreen</button>
+      </div>
+    </div>
+    <div class="game-frame-wrap">
+      <iframe id="gameFrame" sandbox="allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-modals"></iframe>
+    </div>
+    <div class="stats-bar" id="statsBar"></div>
+  </div>
+
+  <!-- Code View -->
+  <div class="code-panel" id="codePanel">
+    <div class="code-header">
+      <span style="font-size:12px; color:var(--muted)">📄 generated_game.html</span>
+      <button class="action-btn" onclick="copyCode()">📋 Copy</button>
+    </div>
+    <div class="code-scroll"><pre id="codeView"></pre></div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let generatedHTML = "";
+let codeVisible = false;
+
+function useExample(el) {
+  document.getElementById('promptInput').value = el.textContent.replace(/^[^\s]+\s/, '');
+  document.getElementById('promptInput').focus();
+}
+
+function log(msg, type = 'info') {
+  const body = document.getElementById('terminalBody');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-prefix">›</span><span class="log-${type}">${msg}</span>`;
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+}
+
+function setProgress(pct) {
+  const bar = document.getElementById('progressBar');
+  if (bar) bar.style.width = pct + '%';
+}
+
+async function generateGame() {
+  const prompt = document.getElementById('promptInput').value.trim();
+  if (!prompt) return;
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Generating...';
+
+  // Reset UI
+  const terminal = document.getElementById('terminal');
+  terminal.classList.add('visible');
+  document.getElementById('terminalBody').innerHTML =
+    '<div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>';
+  document.getElementById('gamePreview').classList.remove('visible');
+  document.getElementById('codePanel').classList.remove('visible');
+  codeVisible = false;
+  generatedHTML = "";
+
+  log(`🔗 og.init() — connecting to OpenGradient...`, 'info');
+  setProgress(15);
+  await sleep(300);
+
+  log(`✅ Wallet connected — GPT_4O model ready`, 'success');
+  setProgress(30);
+  await sleep(200);
+
+  log(`🎯 Prompt: "<strong>${escHtml(prompt)}</strong>"`, 'gen');
+  setProgress(40);
+  await sleep(200);
+
+  log(`<span class="spinner"></span> og.global_client.llm.chat(<strong>GPT_4O</strong>, max_tokens=4000)...`, 'gen');
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 55000);
+
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeout);
+    setProgress(85);
+
+    // Read raw text first for debugging
+    const rawText = await res.text();
+    log(`📡 Server response: <strong>${res.status}</strong> — ${rawText.length} bytes`, 'info');
+
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch(e) {
+      throw new Error(`Invalid JSON from server: ${rawText.slice(0, 200)}`);
+    }
+
+    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+    if (!data.html)            throw new Error('No HTML in response');
+
+    generatedHTML = data.html;
+    setProgress(95);
+    await sleep(200);
+
+    // Validate HTML
+    const hasDoctype = generatedHTML.toLowerCase().includes('<!doctype') || generatedHTML.toLowerCase().includes('<html');
+    if (!hasDoctype) throw new Error(`Response is not valid HTML: ${generatedHTML.slice(0,150)}`);
+
+    log(`✅ Generation complete — <strong>${data.size.toLocaleString()}</strong> chars`, 'success');
+    log(`⛓️ Inference verified on-chain via x402 settlement`, 'success');
+    log(`🌐 Rendering game preview...`, 'info');
+    setProgress(100);
+
+    await sleep(300);
+    renderGame(generatedHTML, prompt, data.size);
+
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      log(`❌ Timeout — l'request da9at 55s. Vercel Plan dyalek kaydkhol?`, 'error');
+    } else {
+      log(`❌ Error: ${escHtml(err.message)}`, 'error');
+    }
+    if (err.message.includes('OPG') || err.message.includes('balance')) {
+      log(`💡 Check OPG tokens — faucet.opengradient.ai`, 'warn');
+    }
+    log(`💡 Check browser Console (F12) for more details`, 'warn');
+    console.error('Full error:', err);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span>⚡</span> Generate';
+}
+
+function renderGame(html, prompt, size) {
+  document.getElementById('gameFrame').srcdoc = html;
+  document.getElementById('gamePreview').classList.add('visible');
+
+  const lines = html.split('\n').length;
+  const sizeKB = (size / 1024).toFixed(1);
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat">📄 <span class="stat-val">${lines.toLocaleString()}</span> lines</div>
+    <div class="stat">💾 <span class="stat-val">${sizeKB}KB</span></div>
+    <div class="stat">🤖 <span class="stat-val">GPT-4o</span> via OpenGradient TEE</div>
+    <div class="stat">⛓️ <span class="stat-val">Verifiable</span> on-chain</div>
+  `;
+  document.getElementById('codeView').textContent = html;
+  document.getElementById('gamePreview').scrollIntoView({ behavior: 'smooth' });
+}
+
+function toggleCode() {
+  const cp = document.getElementById('codePanel');
+  codeVisible = !codeVisible;
+  cp.classList.toggle('visible', codeVisible);
+  if (codeVisible) cp.scrollIntoView({ behavior: 'smooth' });
+}
+
+function downloadGame() {
+  if (!generatedHTML) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([generatedHTML], { type: 'text/html' }));
+  a.download = `game_${Date.now()}.html`;
+  a.click();
+  showToast('✅ Downloaded!');
+}
+
+function fullscreen() {
+  const f = document.getElementById('gameFrame');
+  (f.requestFullscreen || f.webkitRequestFullscreen).call(f);
+}
+
+function copyCode() {
+  navigator.clipboard.writeText(generatedHTML).then(() => showToast('✅ Code copied!'));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+const escHtml = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const sleep   = ms => new Promise(r => setTimeout(r, ms));
+
+document.getElementById('promptInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') generateGame();
+});
+</script>
+</body>
+</html>

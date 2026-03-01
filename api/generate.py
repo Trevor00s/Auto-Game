@@ -3,6 +3,7 @@ import json
 import os
 import re
 import traceback
+import time
 
 
 class handler(BaseHTTPRequestHandler):
@@ -36,28 +37,43 @@ class handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self._json({"error": f"og.init() failed: {e}"}, 500)
 
-            try:
-                result = og.global_client.llm.chat(
-                    model=og.TEE_LLM.GPT_4O,
-                    messages=[
-                        {
-                            "role": "user",
-                            "content": (
-                                f"Create a complete browser game: {prompt}\n\n"
-                                "IMPORTANT: Output ONLY raw HTML. "
-                                "Start EXACTLY with <!DOCTYPE html> — no markdown, "
-                                "no backticks, no explanation."
-                            )
-                        }
-                    ],
-                    max_tokens=4000,
-                    temperature=0.7,
-                    x402_settlement_mode=og.x402SettlementMode.SETTLE_BATCH
-                )
-            except Exception as e:
-                return self._json({"error": f"llm.chat() failed: {e}"}, 500)
+            # Retry up to 3 times on connection errors
+            result = None
+            last_error = None
+            for attempt in range(3):
+                try:
+                    result = og.global_client.llm.chat(
+                        model=og.TEE_LLM.GPT_4O,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": (
+                                    f"Create a complete browser game: {prompt}\n\n"
+                                    "IMPORTANT: Output ONLY raw HTML. "
+                                    "Start EXACTLY with <!DOCTYPE html> — no markdown, "
+                                    "no backticks, no explanation."
+                                )
+                            }
+                        ],
+                        max_tokens=4000,
+                        temperature=0.7,
+                        x402_settlement_mode=og.x402SettlementMode.SETTLE_BATCH
+                    )
+                    break  # success
+                except Exception as e:
+                    last_error = e
+                    err_str = str(e).lower()
+                    # Retry only on connection errors
+                    if any(x in err_str for x in ["connection", "reset", "backend", "aborted"]):
+                        if attempt < 2:
+                            time.sleep(2 * (attempt + 1))  # 2s, 4s
+                            continue
+                    break  # non-retryable error
 
-            # ✅ FIX: TextGenerationOutput.chat_output['content']
+            if result is None:
+                return self._json({"error": f"llm.chat() failed after 3 attempts: {last_error}"}, 500)
+
+            # Extract HTML — TextGenerationOutput.chat_output['content']
             html = ""
             try:
                 if hasattr(result, "chat_output") and isinstance(result.chat_output, dict):

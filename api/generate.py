@@ -5,6 +5,7 @@ import re
 import traceback
 import time
 import urllib.request
+import urllib.error
 
 
 class handler(BaseHTTPRequestHandler):
@@ -23,51 +24,47 @@ class handler(BaseHTTPRequestHandler):
             if not prompt:
                 return self._json({"error": "prompt is required"}, 400)
 
-            html, source = self._generate(prompt)
+            og_key  = os.environ.get("OG_PRIVATE_KEY", "")
+            ant_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
-            if not html:
-                return self._json({"error": "Empty response from all providers"}, 500)
+            errors = []
 
-            return self._json({"html": html, "size": len(html), "source": source})
+            system = (
+                "You are an elite game developer AI. Generate complete, playable browser games "
+                "as a SINGLE self-contained HTML file. Output ONLY raw HTML starting with "
+                "<!DOCTYPE html>. No markdown, no backticks, no explanation."
+            )
+            user_msg = (
+                f"Create a complete browser game: {prompt}\n\n"
+                "Requirements: title screen, score display, game over + replay button, "
+                "keyboard and mouse controls, sound via Web Audio API, 60fps target. "
+                "Output ONLY the raw HTML file."
+            )
+
+            # Try OpenGradient first
+            if og_key:
+                try:
+                    html = self._call_opengradient(og_key, user_msg)
+                    if html:
+                        return self._json({"html": html, "size": len(html), "source": "opengradient"})
+                except Exception as e:
+                    errors.append(f"OpenGradient: {e}")
+
+            # Fallback: Anthropic
+            if ant_key:
+                try:
+                    html = self._call_anthropic(ant_key, system, user_msg)
+                    if html:
+                        return self._json({"html": html, "size": len(html), "source": "anthropic"})
+                except Exception as e:
+                    errors.append(f"Anthropic: {e}")
+            else:
+                errors.append("Anthropic: ANTHROPIC_API_KEY not set in environment")
+
+            return self._json({"error": " | ".join(errors) or "All providers failed"}, 500)
 
         except Exception as e:
             return self._json({"error": str(e), "traceback": traceback.format_exc()}, 500)
-
-    def _generate(self, prompt):
-        og_key  = os.environ.get("OG_PRIVATE_KEY", "")
-        ant_key = os.environ.get("ANTHROPIC_API_KEY", "")
-
-        system = (
-            "You are an elite game developer AI. Generate complete, playable browser games "
-            "as a SINGLE self-contained HTML file. Output ONLY raw HTML starting with "
-            "<!DOCTYPE html>. No markdown, no backticks, no explanation."
-        )
-        user_msg = (
-            f"Create a complete browser game: {prompt}\n\n"
-            "Requirements: title screen, score display, game over + replay button, "
-            "keyboard and mouse controls, sound via Web Audio API, 60fps target. "
-            "Output ONLY the raw HTML file."
-        )
-
-        # Try OpenGradient first
-        if og_key:
-            try:
-                html = self._call_opengradient(og_key, user_msg)
-                if html:
-                    return html, "opengradient"
-            except Exception as e:
-                print(f"OpenGradient failed: {e}")
-
-        # Fallback: Anthropic API
-        if ant_key:
-            try:
-                html = self._call_anthropic(ant_key, system, user_msg)
-                if html:
-                    return html, "anthropic"
-            except Exception as e:
-                print(f"Anthropic failed: {e}")
-
-        return None, None
 
     def _call_opengradient(self, private_key, user_msg):
         import opengradient as og
@@ -113,8 +110,12 @@ class handler(BaseHTTPRequestHandler):
                 "content-type": "application/json"
             }
         )
-        with urllib.request.urlopen(req, timeout=55) as res:
-            data = json.loads(res.read())
+        try:
+            with urllib.request.urlopen(req, timeout=55) as res:
+                data = json.loads(res.read())
+        except urllib.error.HTTPError as e:
+            body = e.read().decode()
+            raise Exception(f"HTTP {e.code}: {body}")
 
         html = data["content"][0]["text"]
         return self._clean_html(html)
